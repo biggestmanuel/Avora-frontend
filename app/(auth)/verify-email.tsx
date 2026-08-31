@@ -1,0 +1,122 @@
+import { useRef, useState, useEffect } from 'react';
+import {
+  View, Text, TextInput, StyleSheet, Pressable, SafeAreaView, ActivityIndicator,
+} from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+
+const CODE_LENGTH = 6;
+const RESEND_SECONDS = 30;
+
+export default function VerifyEmail() {
+  const { email } = useLocalSearchParams<{ email?: string }>();
+  const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [seconds, setSeconds] = useState(RESEND_SECONDS);
+  const inputs = useRef<Array<TextInput | null>>([]);
+
+  useEffect(() => {
+    if (seconds === 0) return;
+    const t = setTimeout(() => setSeconds((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [seconds]);
+
+  const onChangeDigit = (val: string, idx: number) => {
+    const digit = val.replace(/\D/g, '').slice(-1);
+    const next = [...code];
+    next[idx] = digit;
+    setCode(next);
+    if (digit && idx < CODE_LENGTH - 1) inputs.current[idx + 1]?.focus();
+  };
+
+  const onKeyPress = (key: string, idx: number) => {
+    if (key === 'Backspace' && !code[idx] && idx > 0) inputs.current[idx - 1]?.focus();
+  };
+
+  const handleVerify = async () => {
+    setError(null);
+    const otp = code.join('');
+    if (otp.length !== CODE_LENGTH) return setError('Enter the 6-digit code');
+
+    setLoading(true);
+    try {
+      // TODO: replace with lib/api/client verify-email call
+      await new Promise((r) => setTimeout(r, 800));
+      router.push('/(auth)/verify-phone');
+    } catch {
+      setError('Invalid code. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = () => {
+    if (seconds > 0) return;
+    setSeconds(RESEND_SECONDS);
+    // TODO: trigger resend email API call
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.body}>
+        <Text style={styles.title}>Verify your email</Text>
+        <Text style={styles.subtitle}>
+          We sent a 6-digit code to{'\n'}
+          <Text style={styles.emailText}>{email ?? 'your email'}</Text>
+        </Text>
+
+        <View style={styles.codeRow}>
+          {code.map((digit, idx) => (
+            <TextInput
+              key={idx}
+              ref={(r) => (inputs.current[idx] = r)}
+              style={styles.codeBox}
+              value={digit}
+              onChangeText={(v) => onChangeDigit(v, idx)}
+              onKeyPress={({ nativeEvent }) => onKeyPress(nativeEvent.key, idx)}
+              keyboardType="number-pad"
+              maxLength={1}
+              textAlign="center"
+            />
+          ))}
+        </View>
+
+        {error && <Text style={styles.error}>{error}</Text>}
+
+        <Pressable onPress={handleResend} disabled={seconds > 0}>
+          <Text style={[styles.resend, seconds > 0 && styles.resendDisabled]}>
+            {seconds > 0 ? `Resend code in ${seconds}s` : 'Resend code'}
+          </Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.footer}>
+        <Pressable style={styles.primaryBtn} onPress={handleVerify} disabled={loading}>
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Verify</Text>}
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#0B0B0F', justifyContent: 'space-between' },
+  body: { flex: 1, paddingHorizontal: 24, paddingTop: 48 },
+  title: { fontSize: 26, fontWeight: '700', color: '#FFFFFF' },
+  subtitle: { fontSize: 15, color: '#9A9AA5', marginTop: 8, marginBottom: 32, lineHeight: 21 },
+  emailText: { color: '#FFFFFF', fontWeight: '600' },
+  codeRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  codeBox: {
+    width: 48, height: 56, borderRadius: 12, backgroundColor: '#17171D',
+    borderWidth: 1, borderColor: '#26262E', color: '#FFFFFF', fontSize: 22, fontWeight: '600',
+  },
+  error: { color: '#FF6B6B', fontSize: 13, marginTop: 4 },
+  resend: { color: '#8C7AFF', fontSize: 14, fontWeight: '600', marginTop: 24 },
+  resendDisabled: { color: '#5C5C66' },
+  footer: { paddingHorizontal: 24, paddingBottom: 32 },
+  primaryBtn: {
+    backgroundColor: '#6C5CE7', borderRadius: 14, paddingVertical: 16,
+    alignItems: 'center', justifyContent: 'center', height: 54,
+  },
+  primaryBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
+});
