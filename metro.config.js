@@ -9,4 +9,5 @@ module.exports = config;
 config.resolver.extraNodeModules = {
   crypto: require.resolve('crypto-browserify'),
   stream: require.resolve('stream-browserify'),
+  events: require.resolve('events'),
 };

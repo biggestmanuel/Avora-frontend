@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { chains, ChainId } from '../lib/chains';
+import { getChainModule, ChainId } from '../lib/chains';
 import { getSecureItem, SecureStorageKeys } from '../lib/storage/secureStorage';
 
 const NATIVE_SYMBOLS: Record<ChainId, string> = {
@@ -62,7 +62,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       const results = await Promise.all(
         chainIds.map(async (chainId) => {
           const address = addresses[chainId]!;
-          const adapter = chains[chainId];
+          const adapter = await getChainModule(chainId);
           const balance = await adapter.getBalance(address);
           const balanceEntry: AssetBalance = {
             id: `${chainId}:native`,

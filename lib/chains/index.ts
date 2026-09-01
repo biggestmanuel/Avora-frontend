@@ -1,10 +1,28 @@
-import * as eth from './eth';
-import * as bsc from './bsc';
-import * as base from './base';
-import * as polygon from './polygon';
-import * as sol from './sol';
-import * as tron from './tron';
-import * as ton from './ton';
+export type ChainId = 'eth' | 'bsc' | 'base' | 'polygon' | 'sol' | 'tron' | 'ton';
 
-export const chains = { eth, bsc, base, polygon, sol, tron, ton } as const;
-export type ChainId = keyof typeof chains;
+const loaders = {
+  eth: () => import('./eth'),
+  bsc: () => import('./bsc'),
+  base: () => import('./base'),
+  polygon: () => import('./polygon'),
+  sol: () => import('./sol'),
+  tron: () => import('./tron'),
+  ton: () => import('./ton'),
+} as const;
+
+type ChainModuleMap = { [K in ChainId]: Awaited<ReturnType<(typeof loaders)[K]>> };
+
+const cache: Partial<ChainModuleMap> = {};
+
+export async function getChainModule<K extends ChainId>(
+  chain: K
+): Promise<ChainModuleMap[K]> {
+  if (cache[chain]) return cache[chain] as ChainModuleMap[K];
+  const mod = await loaders[chain]();
+  cache[chain] = mod as ChainModuleMap[K];
+  return mod as ChainModuleMap[K];
+}
+
+export function isChainLoaded(chain: ChainId): boolean {
+  return chain in cache;
+}
