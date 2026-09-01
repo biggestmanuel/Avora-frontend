@@ -1,8 +1,6 @@
 import { useState } from 'react';
-import {
-  View, Text, TextInput, StyleSheet, Pressable, SafeAreaView,
-  KeyboardAvoidingView, Platform,
-} from 'react-native';
+import { View, Text, TextInput, StyleSheet, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
 // TODO: replace with lib/validation/triverify.ts address format + existence check

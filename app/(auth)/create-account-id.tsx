@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import {
-  View, Text, StyleSheet, Pressable, SafeAreaView, ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
 // TODO: replace with lib/api/accountId call — server generates + reserves the ID

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, SafeAreaView, Switch, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Switch, ScrollView, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
 // TODO: replace with lib/storage/secureStorage + real session list from lib/api/client

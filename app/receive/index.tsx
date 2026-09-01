@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import {
-  View, Text, StyleSheet, Pressable, SafeAreaView, Share, Platform,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, Share, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
 // NOTE: swap this placeholder for a real QR renderer, e.g. react-native-qrcode-svg

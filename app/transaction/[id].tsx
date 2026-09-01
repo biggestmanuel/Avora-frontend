@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, SafeAreaView, ScrollView, Share } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Share } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 
 // TODO: replace with stores/txStore + lib/api/transactions lookup by id
