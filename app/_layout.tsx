@@ -1,52 +1,39 @@
 import 'react-native-get-random-values';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
-import * as SecureStore from 'expo-secure-store';
 
 import { useUserStore } from '../stores/userStore';
 import { useWalletStore } from '../stores/walletStore';
+import { useAuthGateStore } from '../stores/authGateStore';
 
 // Keep splash screen visible while we check auth state
 SplashScreen.preventAutoHideAsync();
 
-type AuthGateStatus = 'checking' | 'authed' | 'guest';
-
 export default function RootLayout() {
-  const [gateStatus, setGateStatus] = useState<AuthGateStatus>('checking');
   const router = useRouter();
   const segments = useSegments();
+  const gateStatus = useAuthGateStore((s) => s.status);
+  const checkAuthGate = useAuthGateStore((s) => s.check);
   const hydrateUser = useUserStore((s) => s.hydrate);
   const hydrateWallet = useWalletStore((s) => s.hydrate);
 
-  const checkAuthGate = useCallback(async () => {
-    try {
-      const [session, pinSet, accountId] = await Promise.all([
-        SecureStore.getItemAsync('session_token'),
-        SecureStore.getItemAsync('pin_hash'),
-        SecureStore.getItemAsync('account_id'),
-      ]);
-
-      if (session && pinSet && accountId) {
-        await Promise.all([hydrateUser(), hydrateWallet()]);
-        setGateStatus('authed');
-      } else {
-        setGateStatus('guest');
-      }
-    } catch (err) {
-      // Fail closed — treat any secure-store read error as unauthenticated
-      console.error('Auth gate check failed:', err);
-      setGateStatus('guest');
-    } finally {
-      await SplashScreen.hideAsync();
-    }
-  }, [hydrateUser, hydrateWallet]);
-
+  // Run once on mount to establish initial gate status.
   useEffect(() => {
-    checkAuthGate();
+    checkAuthGate().finally(() => SplashScreen.hideAsync());
   }, [checkAuthGate]);
+
+  // Whenever gate flips to authed (either at boot, or right after
+  // onboarding/login persists the required keys), hydrate user + wallet.
+  useEffect(() => {
+    if (gateStatus === 'authed') {
+      Promise.all([hydrateUser(), hydrateWallet()]).catch((err) =>
+        console.error('Post-auth hydrate failed:', err)
+      );
+    }
+  }, [gateStatus, hydrateUser, hydrateWallet]);
 
   useEffect(() => {
     if (gateStatus === 'checking') return;

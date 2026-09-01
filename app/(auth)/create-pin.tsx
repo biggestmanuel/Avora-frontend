@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as Crypto from 'expo-crypto';
+
+import { setSecureItem, SecureStorageKeys } from '../../lib/storage/secureStorage';
 
 const PIN_LENGTH = 6;
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'];
@@ -11,12 +14,33 @@ export default function CreatePin() {
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const activePin = stage === 'create' ? pin : confirmPin;
   const setActivePin = stage === 'create' ? setPin : setConfirmPin;
 
+  const persistPin = async (rawPin: string) => {
+    setSaving(true);
+    try {
+      const pinHash = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        rawPin
+      );
+      await setSecureItem(SecureStorageKeys.PIN_HASH, pinHash);
+      router.push('/(auth)/create-account-id');
+    } catch (err) {
+      console.error('Failed to persist PIN:', err);
+      setError('Something went wrong saving your PIN. Try again.');
+      setConfirmPin('');
+      setStage('create');
+      setPin('');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleKeyPress = (key: string) => {
-    if (key === '') return;
+    if (key === '' || saving) return;
     setError(null);
 
     if (key === 'del') {
@@ -33,8 +57,7 @@ export default function CreatePin() {
         setTimeout(() => setStage('confirm'), 150);
       } else {
         if (next === pin) {
-          // TODO: persist PIN via lib/storage/secureStorage + lib/api/client
-          router.push('/(auth)/create-account-id');
+          persistPin(next);
         } else {
           setError('PINs do not match');
           setTimeout(() => {
@@ -75,7 +98,7 @@ export default function CreatePin() {
             key={idx}
             style={styles.key}
             onPress={() => handleKeyPress(key)}
-            disabled={key === ''}
+            disabled={key === '' || saving}
           >
             <Text style={styles.keyText}>{key === 'del' ? '⌫' : key}</Text>
           </Pressable>

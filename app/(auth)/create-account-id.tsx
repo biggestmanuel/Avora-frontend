@@ -2,6 +2,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as Crypto from 'expo-crypto';
+
+import { setSecureItem, SecureStorageKeys } from '../../lib/storage/secureStorage';
+import { useAuthGateStore } from '../../stores/authGateStore';
 
 // TODO: replace with lib/api/accountId call — server generates + reserves the ID
 function generateAccountId(): string {
@@ -18,6 +22,7 @@ export default function CreateAccountId() {
   const [accountId, setAccountId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
+  const checkAuthGate = useAuthGateStore((s) => s.check);
 
   const fetchId = useCallback(async () => {
     setLoading(true);
@@ -32,10 +37,24 @@ export default function CreateAccountId() {
   }, [fetchId]);
 
   const handleConfirm = async () => {
+    if (!accountId) return;
     setConfirming(true);
     try {
-      // TODO: persist confirmed Account ID via lib/api/accountId + stores/userStore
-      await new Promise((r) => setTimeout(r, 700));
+      // TODO: call lib/api/accountId to actually reserve this ID server-side,
+      // and lib/api/client to get a real session_token from signup/login.
+      // Until the backend exists, we mint a local placeholder session token
+      // so the auth gate can be satisfied for frontend testing.
+      const placeholderSession = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        `${accountId}-${Date.now()}`
+      );
+
+      await Promise.all([
+        setSecureItem(SecureStorageKeys.ACCOUNT_ID, accountId),
+        setSecureItem(SecureStorageKeys.SESSION_TOKEN, placeholderSession),
+      ]);
+
+      await checkAuthGate();
       router.replace('/(tabs)/home');
     } finally {
       setConfirming(false);
