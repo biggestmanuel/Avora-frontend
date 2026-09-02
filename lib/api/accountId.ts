@@ -11,7 +11,7 @@ export interface AccountIdProfile {
 // Returns null if no account exists with that ID (not an error state).
 export async function resolveAccountId(accountId: string): Promise<AccountIdProfile | null> {
   try {
-    const { data } = await apiClient.get<AccountIdProfile>(`/account-ids/${accountId}`);
+    const { data } = await apiClient.get<AccountIdProfile>(`/api/account/${accountId}`);
     return data;
   } catch (err: any) {
     if (err?.status === 404) return null;
