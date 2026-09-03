@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { getSecureItem, setSecureItem, clearAllSecureItems, SecureStorageKeys } from '../lib/storage/secureStorage';
 import { resolveAccountId, AccountIdProfile } from '../lib/api/accountId';
+import { useAuthGateStore } from './authGateStore';
 
 interface UserState {
   accountId: string | null;
@@ -61,6 +62,10 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   logout: async () => {
     await clearAllSecureItems();
+    // Otherwise a re-login in the same app session (no process restart)
+    // would inherit the stale pinVerified=true from before logout and skip
+    // PIN entry entirely.
+    useAuthGateStore.getState().resetPinVerified();
     set({ accountId: null, profile: null, biometricEnabled: false });
   },
 }));

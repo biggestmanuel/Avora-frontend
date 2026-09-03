@@ -58,3 +58,22 @@ export async function forgotPassword(input: {
   );
   return data.data;
 }
+
+// PIN is verified server-side, not device-local — matches the OPay/PalmPay/
+// Moniepoint model: set once, then re-entered (and checked against the
+// server) on every login, on any device. Both calls rely on apiClient's
+// interceptor to attach the session token, so they require an active login.
+
+export async function setPin(pin: string): Promise<{ success: boolean }> {
+  const { data } = await apiClient.post<ApiEnvelope<{ success: boolean }>>('/api/auth/set-pin', {
+    pin,
+  });
+  return data.data;
+}
+
+export async function verifyPin(pin: string): Promise<{ valid: boolean }> {
+  const { data } = await apiClient.post<ApiEnvelope<{ valid: boolean }>>('/api/auth/verify-pin', {
+    pin,
+  });
+  return data.data;
+}

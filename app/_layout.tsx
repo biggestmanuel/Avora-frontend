@@ -39,9 +39,14 @@ export default function RootLayout() {
     if (gateStatus === 'checking') return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const onVerifyPin = segments[1] === 'verify-pin';
 
     if (gateStatus === 'guest' && !inAuthGroup) {
       router.replace('/(auth)/welcome');
+    } else if (gateStatus === 'locked' && !onVerifyPin) {
+      // Session + account id already exist on this device — just needs this
+      // launch's PIN check, not the full onboarding flow.
+      router.replace('/(auth)/verify-pin');
     } else if (gateStatus === 'authed' && inAuthGroup) {
       router.replace('/(tabs)/home');
     }

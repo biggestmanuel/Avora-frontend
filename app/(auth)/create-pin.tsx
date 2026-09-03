@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import * as Crypto from 'expo-crypto';
 
-import { setSecureItem, SecureStorageKeys } from '../../lib/storage/secureStorage';
+import { setPin as setPinApi } from '../../lib/api/auth';
+import type { ApiErrorShape } from '../../lib/api/client';
+import { useAuthGateStore } from '../../stores/authGateStore';
 
 const PIN_LENGTH = 6;
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'];
@@ -22,15 +23,18 @@ export default function CreatePin() {
   const persistPin = async (rawPin: string) => {
     setSaving(true);
     try {
-      const pinHash = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        rawPin
-      );
-      await setSecureItem(SecureStorageKeys.PIN_HASH, pinHash);
+      // Hashed and stored on the server (User.pinHash) — this is the PIN
+      // you'll be asked for on every future login, on any device.
+      await setPinApi(rawPin);
+      // They just typed and confirmed it — that's proof enough for this
+      // session, so mark it verified now rather than forcing an immediate
+      // re-prompt at the end of onboarding (pinVerified otherwise only
+      // flips via the verify-pin screen, which this flow never visits).
+      useAuthGateStore.setState({ pinVerified: true });
       router.push('/(auth)/create-account-id');
     } catch (err) {
       console.error('Failed to persist PIN:', err);
-      setError('Something went wrong saving your PIN. Try again.');
+      setError((err as ApiErrorShape).message ?? 'Something went wrong saving your PIN. Try again.');
       setConfirmPin('');
       setStage('create');
       setPin('');

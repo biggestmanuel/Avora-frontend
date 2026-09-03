@@ -4,8 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
 import { login as loginApi } from '../../lib/api/auth';
+import { getMe } from '../../lib/api/accountId';
 import type { ApiErrorShape } from '../../lib/api/client';
-import { setSecureItem, SecureStorageKeys } from '../../lib/storage/secureStorage';
+import { getSecureItem, setSecureItem, SecureStorageKeys } from '../../lib/storage/secureStorage';
 import { useAuthGateStore } from '../../stores/authGateStore';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -15,7 +16,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const checkAuthGate = useAuthGateStore((s) => s.check);
 
   const handleLogin = async () => {
     setError(null);
@@ -27,18 +27,30 @@ export default function Login() {
       const { token } = await loginApi({ email, password });
       await setSecureItem(SecureStorageKeys.SESSION_TOKEN, token);
 
-      // PIN and Account ID are device-local (never sent to the server), so a
-      // fresh login only fully satisfies the auth gate if this device already
-      // has them cached from a previous onboarding. Re-check the gate rather
-      // than assuming home is reachable.
-      await checkAuthGate();
-      const status = useAuthGateStore.getState().status;
-      if (status === 'authed') {
-        router.replace('/(tabs)/home');
-      } else {
-        setError('This device needs a one-time setup. Continuing to account setup…');
-        router.replace('/(auth)/create-pin');
+      // Deliberately do NOT check the auth gate here. The gate only tracks
+      // session + account id — PIN is checked server-side on the next screen,
+      // not by the gate — so flipping it to 'authed' before that would let
+      // _layout route straight to home and skip PIN entry entirely.
+      let accountId = await getSecureItem(SecureStorageKeys.ACCOUNT_ID);
+      if (!accountId) {
+        // Fresh device, existing account: fetch and cache it so PIN entry
+        // (and everything after) has what it needs. No local prompt needed —
+        // an account is created once at signup, not per device.
+        const me = await getMe();
+        accountId = me?.accountId?.accountId ?? null;
+        if (accountId) await setSecureItem(SecureStorageKeys.ACCOUNT_ID, accountId);
       }
+
+      if (!accountId) {
+        setError('No Account ID found for this account. Please complete signup.');
+        return;
+      }
+
+      // session + accountId now present, pinVerified still false this
+      // launch -> gate flips to 'locked', which _layout also routes to
+      // verify-pin, but we navigate directly rather than wait on the effect.
+      await useAuthGateStore.getState().check();
+      router.replace('/(auth)/verify-pin');
     } catch (err) {
       setError((err as ApiErrorShape).message ?? 'Login failed. Check your credentials and try again.');
     } finally {

@@ -6,7 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 
 export const SecureStorageKeys = {
   SESSION_TOKEN: 'session_token',
-  PIN_HASH: 'pin_hash',
+  PIN_HASH: 'pin_hash', // deprecated — PIN is verified server-side now (User.pinHash), never cached on-device
   ACCOUNT_ID: 'account_id',
   MNEMONIC_ENCRYPTED: 'mnemonic_encrypted',
   BIOMETRIC_ENABLED: 'biometric_enabled',
