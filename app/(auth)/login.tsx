@@ -3,6 +3,11 @@ import { View, Text, TextInput, StyleSheet, Pressable, KeyboardAvoidingView, Pla
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
+import { login as loginApi } from '../../lib/api/auth';
+import type { ApiErrorShape } from '../../lib/api/client';
+import { setSecureItem, SecureStorageKeys } from '../../lib/storage/secureStorage';
+import { useAuthGateStore } from '../../stores/authGateStore';
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Login() {
@@ -10,6 +15,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const checkAuthGate = useAuthGateStore((s) => s.check);
 
   const handleLogin = async () => {
     setError(null);
@@ -18,11 +24,23 @@ export default function Login() {
 
     setLoading(true);
     try {
-      // TODO: replace with lib/api/client auth call
-      await new Promise((r) => setTimeout(r, 900));
-      router.replace('/(tabs)/home');
-    } catch {
-      setError('Login failed. Check your credentials and try again.');
+      const { token } = await loginApi({ email, password });
+      await setSecureItem(SecureStorageKeys.SESSION_TOKEN, token);
+
+      // PIN and Account ID are device-local (never sent to the server), so a
+      // fresh login only fully satisfies the auth gate if this device already
+      // has them cached from a previous onboarding. Re-check the gate rather
+      // than assuming home is reachable.
+      await checkAuthGate();
+      const status = useAuthGateStore.getState().status;
+      if (status === 'authed') {
+        router.replace('/(tabs)/home');
+      } else {
+        setError('This device needs a one-time setup. Continuing to account setup…');
+        router.replace('/(auth)/create-pin');
+      }
+    } catch (err) {
+      setError((err as ApiErrorShape).message ?? 'Login failed. Check your credentials and try again.');
     } finally {
       setLoading(false);
     }

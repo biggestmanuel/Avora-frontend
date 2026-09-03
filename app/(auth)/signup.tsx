@@ -3,6 +3,10 @@ import { View, Text, TextInput, StyleSheet, Pressable, KeyboardAvoidingView, Pla
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
+import { signup as signupApi } from '../../lib/api/auth';
+import type { ApiErrorShape } from '../../lib/api/client';
+import { setSecureItem, SecureStorageKeys } from '../../lib/storage/secureStorage';
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Signup() {
@@ -28,14 +32,16 @@ export default function Signup() {
 
     setLoading(true);
     try {
-      // TODO: replace with lib/api/client signup call
-      await new Promise((r) => setTimeout(r, 900));
+      const { user, token } = await signupApi({ email, phone, password });
+      await setSecureItem(SecureStorageKeys.SESSION_TOKEN, token);
       router.push({
         pathname: '/(auth)/verify-email',
-        params: { email },
+        params: { email, phone, userId: user.id },
       });
-    } catch {
-      setError('Something went wrong. Please try again.');
+    } catch (err) {
+      // apiClient's response interceptor already normalizes rejected errors
+      // to ApiErrorShape — don't re-wrap with toApiError here.
+      setError((err as ApiErrorShape).message);
     } finally {
       setLoading(false);
     }

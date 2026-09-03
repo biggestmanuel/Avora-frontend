@@ -3,11 +3,14 @@ import { View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 
+import { verifyEmail as verifyEmailApi } from '../../lib/api/auth';
+import type { ApiErrorShape } from '../../lib/api/client';
+
 const CODE_LENGTH = 6;
 const RESEND_SECONDS = 30;
 
 export default function VerifyEmail() {
-  const { email } = useLocalSearchParams<{ email?: string }>();
+  const { email, userId, phone } = useLocalSearchParams<{ email?: string; userId?: string; phone?: string }>();
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -37,13 +40,20 @@ export default function VerifyEmail() {
     const otp = code.join('');
     if (otp.length !== CODE_LENGTH) return setError('Enter the 6-digit code');
 
+    if (!userId) {
+      setError('Missing signup session. Please sign up again.');
+      return;
+    }
+
     setLoading(true);
     try {
-      // TODO: replace with lib/api/client verify-email call
-      await new Promise((r) => setTimeout(r, 800));
-      router.push('/(auth)/verify-phone');
-    } catch {
-      setError('Invalid code. Please try again.');
+      await verifyEmailApi({ userId, code: otp });
+      router.push({
+        pathname: '/(auth)/verify-phone',
+        params: { phone, userId },
+      });
+    } catch (err) {
+      setError((err as ApiErrorShape).message ?? 'Invalid code. Please try again.');
     } finally {
       setLoading(false);
     }

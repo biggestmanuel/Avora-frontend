@@ -3,35 +3,53 @@ import { apiClient } from './client';
 export interface AccountIdProfile {
   accountId: string;
   name?: string;
-  photoUri?: string;
-  supportedWallets: string[];
+  photoUrl?: string;
+}
+
+interface ApiEnvelope<T> {
+  success: boolean;
+  data: T;
 }
 
 // Resolve a 10-digit Account ID to its public profile.
 // Returns null if no account exists with that ID (not an error state).
 export async function resolveAccountId(accountId: string): Promise<AccountIdProfile | null> {
   try {
-    const { data } = await apiClient.get<AccountIdProfile>(`/api/account/${accountId}`);
-    return data;
+    const { data } = await apiClient.get<
+      ApiEnvelope<{ accountId: string; profile: { id: string; name: string | null; photoUrl: string | null } }>
+    >(`/api/account/${accountId}`);
+    const { accountId: id, profile } = data.data;
+    return { accountId: id, name: profile?.name ?? undefined, photoUrl: profile?.photoUrl ?? undefined };
   } catch (err: any) {
     if (err?.status === 404) return null;
     throw err;
   }
 }
 
-export async function checkAccountIdAvailable(accountId: string): Promise<boolean> {
-  const { data } = await apiClient.get<{ available: boolean }>(`/account-ids/${accountId}/available`);
-  return data.available;
+// Server generates and immediately persists a new Account ID for the logged-in
+// user (auth required). There is no separate "reserve/preview" step and no way
+// to pick your own ID — calling this a second time for the same user 409s.
+export async function createAccountId(): Promise<{ id: string; accountId: string; userId: string }> {
+  const { data } = await apiClient.post<ApiEnvelope<{ id: string; accountId: string; userId: string }>>(
+    '/api/account/create-account-id'
+  );
+  return data.data;
 }
 
-export async function claimAccountId(accountId: string): Promise<AccountIdProfile> {
-  const { data } = await apiClient.post<AccountIdProfile>('/account-ids', { accountId });
-  return data;
+export async function getMe(): Promise<any> {
+  const { data } = await apiClient.get<ApiEnvelope<any>>('/api/account/me');
+  return data.data;
 }
 
-export async function updateAccountIdProfile(
-  patch: Partial<Pick<AccountIdProfile, 'name' | 'photoUri'>>
-): Promise<AccountIdProfile> {
-  const { data } = await apiClient.patch<AccountIdProfile>('/account-ids/me', patch);
-  return data;
+export async function updateSettings(
+  patch: Partial<{
+    name: string;
+    photoUrl: string;
+    defaultCurrency: string;
+    defaultLanguage: string;
+    defaultNetwork: string;
+  }>
+): Promise<any> {
+  const { data } = await apiClient.patch<ApiEnvelope<any>>('/api/account/settings', patch);
+  return data.data;
 }

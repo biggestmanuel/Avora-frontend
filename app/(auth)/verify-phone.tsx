@@ -3,11 +3,14 @@ import { View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 
+import { verifyPhone as verifyPhoneApi } from '../../lib/api/auth';
+import type { ApiErrorShape } from '../../lib/api/client';
+
 const CODE_LENGTH = 6;
 const RESEND_SECONDS = 30;
 
 export default function VerifyPhone() {
-  const { phone } = useLocalSearchParams<{ phone?: string }>();
+  const { phone, userId } = useLocalSearchParams<{ phone?: string; userId?: string }>();
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(''));
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -37,13 +40,17 @@ export default function VerifyPhone() {
     const otp = code.join('');
     if (otp.length !== CODE_LENGTH) return setError('Enter the 6-digit code');
 
+    if (!userId) {
+      setError('Missing signup session. Please sign up again.');
+      return;
+    }
+
     setLoading(true);
     try {
-      // TODO: replace with lib/api/client verify-phone call
-      await new Promise((r) => setTimeout(r, 800));
+      await verifyPhoneApi({ userId, code: otp });
       router.push('/(auth)/create-pin');
-    } catch {
-      setError('Invalid code. Please try again.');
+    } catch (err) {
+      setError((err as ApiErrorShape).message ?? 'Invalid code. Please try again.');
     } finally {
       setLoading(false);
     }

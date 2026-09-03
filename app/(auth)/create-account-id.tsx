@@ -2,17 +2,12 @@ import { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import * as Crypto from 'expo-crypto';
 
+import { createAccountId, getMe } from '../../lib/api/accountId';
+import { setupNonCustodialWallet } from '../../lib/registerWallets';
 import { setSecureItem, SecureStorageKeys } from '../../lib/storage/secureStorage';
 import { useAuthGateStore } from '../../stores/authGateStore';
-
-// TODO: replace with lib/api/accountId call — server generates + reserves the ID
-function generateAccountId(): string {
-  let id = '';
-  for (let i = 0; i < 10; i++) id += Math.floor(Math.random() * 10);
-  return id;
-}
+import type { ApiErrorShape } from '../../lib/api/client';
 
 function formatAccountId(id: string): string {
   return id.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3');
@@ -22,14 +17,34 @@ export default function CreateAccountId() {
   const [accountId, setAccountId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const checkAuthGate = useAuthGateStore((s) => s.check);
 
+  // The backend assigns and persists the Account ID the moment this is called
+  // — there's no preview/reserve step and no way to pick your own ID. If the
+  // user already has one (e.g. they backed out and returned to this screen),
+  // createAccountId() 409s, so fall back to fetching the existing one.
   const fetchId = useCallback(async () => {
     setLoading(true);
-    // simulate reservation call
-    await new Promise((r) => setTimeout(r, 600));
-    setAccountId(generateAccountId());
-    setLoading(false);
+    setError(null);
+    try {
+      const result = await createAccountId();
+      setAccountId(result.accountId);
+    } catch (err) {
+      const apiErr = err as ApiErrorShape;
+      if (apiErr.status === 409) {
+        try {
+          const me = await getMe();
+          setAccountId(me?.accountId?.accountId ?? null);
+        } catch (meErr) {
+          setError((meErr as ApiErrorShape).message ?? 'Could not load your Account ID.');
+        }
+      } else {
+        setError(apiErr.message ?? 'Could not create your Account ID.');
+      }
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -39,23 +54,19 @@ export default function CreateAccountId() {
   const handleConfirm = async () => {
     if (!accountId) return;
     setConfirming(true);
+    setError(null);
     try {
-      // TODO: call lib/api/accountId to actually reserve this ID server-side,
-      // and lib/api/client to get a real session_token from signup/login.
-      // Until the backend exists, we mint a local placeholder session token
-      // so the auth gate can be satisfied for frontend testing.
-      const placeholderSession = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        `${accountId}-${Date.now()}`
-      );
+      await setSecureItem(SecureStorageKeys.ACCOUNT_ID, accountId);
 
-      await Promise.all([
-        setSecureItem(SecureStorageKeys.ACCOUNT_ID, accountId),
-        setSecureItem(SecureStorageKeys.SESSION_TOKEN, placeholderSession),
-      ]);
+      // Generates keys for all 7 chains, persists mnemonics locally, and
+      // registers only public addresses with the backend. Session token
+      // (needed for auth) was already stored back at signup/login.
+      await setupNonCustodialWallet();
 
       await checkAuthGate();
       router.replace('/(tabs)/home');
+    } catch (err) {
+      setError((err as ApiErrorShape).message ?? 'Something went wrong setting up your wallet.');
     } finally {
       setConfirming(false);
     }
@@ -77,9 +88,7 @@ export default function CreateAccountId() {
           )}
         </View>
 
-        <Pressable style={styles.regenerateBtn} onPress={fetchId} disabled={loading}>
-          <Text style={styles.regenerateText}>Generate a different ID</Text>
-        </Pressable>
+        {error && <Text style={styles.error}>{error}</Text>}
       </View>
 
       <View style={styles.footer}>
@@ -112,8 +121,7 @@ const styles = StyleSheet.create({
     borderColor: '#26262E', paddingVertical: 32, alignItems: 'center', justifyContent: 'center',
   },
   idText: { fontSize: 28, fontWeight: '700', color: '#FFFFFF', letterSpacing: 2 },
-  regenerateBtn: { marginTop: 20 },
-  regenerateText: { color: '#8C7AFF', fontSize: 14, fontWeight: '600' },
+  error: { color: '#FF6B6B', fontSize: 13, marginTop: 16, textAlign: 'center' },
   footer: { paddingHorizontal: 24, paddingBottom: 32 },
   primaryBtn: {
     backgroundColor: '#6C5CE7', borderRadius: 14, paddingVertical: 16,

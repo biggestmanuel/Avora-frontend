@@ -54,7 +54,7 @@ export async function setupNonCustodialWallet(): Promise<RegisterWalletsResult> 
     address,
   }));
 
-  await apiClient.post('/wallet/register', { addresses: payload });
+  await apiClient.post('/api/wallet/register', { addresses: payload });
   // apiClient's response interceptor (lib/api/client.ts) rejects non-2xx
   // responses into a normalized ApiErrorShape, so reaching this line means success.
 
