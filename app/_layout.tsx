@@ -1,3 +1,5 @@
+import { Buffer } from 'buffer';
+global.Buffer = global.Buffer || Buffer;
 import 'react-native-get-random-values';
 import { useEffect } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
@@ -39,7 +41,7 @@ export default function RootLayout() {
     if (gateStatus === 'checking') return;
 
     const inAuthGroup = segments[0] === '(auth)';
-    const onVerifyPin = segments[1] === 'verify-pin';
+    const onVerifyPin = (segments as string[])[1] === 'verify-pin';
 
     if (gateStatus === 'guest' && !inAuthGroup) {
       router.replace('/(auth)/welcome');

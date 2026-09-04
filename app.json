@@ -2,6 +2,8 @@
   "plugins": [
     "expo-font",
     "expo-router",
-    "expo-secure-store"
+    "expo-secure-store",
+    "expo-splash-screen",
+    "expo-status-bar"
   ]
 }
