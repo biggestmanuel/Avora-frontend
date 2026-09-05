@@ -10,7 +10,6 @@
  *  4. Hydrate walletStore with the confirmed addresses
  */
 
-import { generateWallet, toPublicAddresses } from './keyGeneration';
 import { apiClient } from './api/client';
 import { saveEvmMnemonic, saveSolMnemonic, saveTonMnemonic } from './storage/secureStorage';
 import { useWalletStore } from '../stores/walletStore';
@@ -38,6 +37,11 @@ export interface RegisterWalletsResult {
  * call generateWallet() again if secrets are already in secureStorage.
  */
 export async function setupNonCustodialWallet(): Promise<RegisterWalletsResult> {
+  // Dynamic import: keyGeneration.ts pulls in @ton/ton, @ton/crypto, and
+  // tronweb, which crash if evaluated eagerly at module-load time in
+  // Hermes/RN (same failure mode as lib/chains/index.ts). Loading it lazily
+  // here means it only runs once this function is actually invoked.
+  const { generateWallet, toPublicAddresses } = await import('./keyGeneration');
   const wallet = await generateWallet();
 
   // 1. Persist secrets locally FIRST. If this fails, abort before hitting

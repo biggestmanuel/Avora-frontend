@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
 import { createAccountId, getMe } from '../../lib/api/accountId';
-import { setupNonCustodialWallet } from '../../lib/registerWallets';
 import { setSecureItem, SecureStorageKeys } from '../../lib/storage/secureStorage';
 import { useAuthGateStore } from '../../stores/authGateStore';
 import type { ApiErrorShape } from '../../lib/api/client';
@@ -61,6 +60,10 @@ export default function CreateAccountId() {
       // Generates keys for all 7 chains, persists mnemonics locally, and
       // registers only public addresses with the backend. Session token
       // (needed for auth) was already stored back at signup/login.
+      // Dynamic import: registerWallets.ts (and keyGeneration.ts beneath it)
+      // must not load at screen-mount time, or @ton/ton crashes before this
+      // component even renders — see lib/registerWallets.ts for details.
+      const { setupNonCustodialWallet } = await import('../../lib/registerWallets');
       await setupNonCustodialWallet();
 
       await checkAuthGate();
