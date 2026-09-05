@@ -1,5 +1,8 @@
 import { Buffer } from 'buffer';
 global.Buffer = global.Buffer || Buffer;
+import { TextEncoder, TextDecoder } from 'text-encoding';
+global.TextEncoder = global.TextEncoder || TextEncoder;
+global.TextDecoder = global.TextDecoder || TextDecoder;
 import 'react-native-get-random-values';
 import { useEffect } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
