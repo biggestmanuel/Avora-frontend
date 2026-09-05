@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { verifyPin as verifyPinApi } from '../../lib/api/auth';
 import type { ApiErrorShape } from '../../lib/api/client';
 import { useAuthGateStore } from '../../stores/authGateStore';
+import { deleteSecureItem, SecureStorageKeys } from '../../lib/storage/secureStorage';
 
 const PIN_LENGTH = 6;
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'];
@@ -18,7 +19,25 @@ export default function VerifyPin() {
   const [pin, setPinInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const markPinVerified = useAuthGateStore((s) => s.markPinVerified);
+  const resetPinVerified = useAuthGateStore((s) => s.resetPinVerified);
+  const checkAuthGate = useAuthGateStore((s) => s.check);
+
+  // DEV ONLY — remove before shipping. Wipes every locally-persisted
+  // auth/wallet key so the next launch is a true fresh install (guest
+  // state), instead of manually deleting SecureStore keys by hand.
+  const handleDevReset = async () => {
+    setResetting(true);
+    try {
+      await Promise.all(Object.values(SecureStorageKeys).map((key) => deleteSecureItem(key)));
+      resetPinVerified();
+      await checkAuthGate();
+      router.replace('/(auth)/welcome');
+    } finally {
+      setResetting(false);
+    }
+  };
 
   const submitPin = async (fullPin: string) => {
     setChecking(true);
@@ -85,6 +104,15 @@ export default function VerifyPin() {
           </Pressable>
         ))}
       </View>
+
+      {/* DEV ONLY — remove before shipping */}
+      <Pressable style={styles.devResetBtn} onPress={handleDevReset} disabled={resetting}>
+        {resetting ? (
+          <ActivityIndicator color="#FF6B6B" size="small" />
+        ) : (
+          <Text style={styles.devResetText}>Reset local data (dev)</Text>
+        )}
+      </Pressable>
     </SafeAreaView>
   );
 }
@@ -105,4 +133,6 @@ const styles = StyleSheet.create({
     width: '33.33%', height: 76, alignItems: 'center', justifyContent: 'center',
   },
   keyText: { fontSize: 26, color: '#FFFFFF', fontWeight: '500' },
+  devResetBtn: { alignItems: 'center', paddingBottom: 24 },
+  devResetText: { color: '#FF6B6B', fontSize: 12, textDecorationLine: 'underline' },
 });
