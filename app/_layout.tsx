@@ -1,14 +1,7 @@
-import { Buffer } from 'buffer';
-// Unconditional — if anything else set a partial/stub global.Buffer before
-// this line runs, `global.Buffer = Buffer` would keep that stub and silently
-// drop methods like .alloc, which @ton/core calls at module-load time
-// (Cell.EMPTY = new Cell()), causing "undefined is not a function" deep in
-// its dependency chain with no clear error at the actual point of failure.
-global.Buffer = Buffer;
-import { TextEncoder, TextDecoder } from 'text-encoding';
-global.TextEncoder = global.TextEncoder = TextEncoder;
-global.TextDecoder = global.TextDecoder = TextDecoder;
-import 'react-native-get-random-values';
+// Must stay the very first import in this file — see lib/polyfills.ts for
+// why an inline version here doesn't actually run before other imports.
+import '../lib/polyfills';
+
 import { useEffect } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -18,10 +11,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useUserStore } from '../stores/userStore';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthGateStore } from '../stores/authGateStore';
-console.log('Buffer.alloc:', typeof Buffer.alloc, 'TextEncoder:', typeof global.TextEncoder);
-console.log('DEBUG Buffer.alloc:', typeof Buffer.alloc);
-console.log('DEBUG global.TextEncoder:', typeof global.TextEncoder);
-console.log('DEBUG global.Buffer === Buffer:', global.Buffer === Buffer);
 
 // Keep splash screen visible while we check auth state
 SplashScreen.preventAutoHideAsync();
