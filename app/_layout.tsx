@@ -19,6 +19,9 @@ import { useUserStore } from '../stores/userStore';
 import { useWalletStore } from '../stores/walletStore';
 import { useAuthGateStore } from '../stores/authGateStore';
 console.log('Buffer.alloc:', typeof Buffer.alloc, 'TextEncoder:', typeof global.TextEncoder);
+console.log('DEBUG Buffer.alloc:', typeof Buffer.alloc);
+console.log('DEBUG global.TextEncoder:', typeof global.TextEncoder);
+console.log('DEBUG global.Buffer === Buffer:', global.Buffer === Buffer);
 
 // Keep splash screen visible while we check auth state
 SplashScreen.preventAutoHideAsync();
